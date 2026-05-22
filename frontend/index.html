@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拼单外卖 - Food Pooling</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#ff6b35;--primary-dark:#e55a2b;--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--text2:#86868b;--border:#e5e5ea;--green:#34c759;--red:#ff3b30;--blue:#007aff;--radius:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh}
+.container{max-width:100%;margin:0 auto;padding:0 16px 100px}
+.hidden{display:none!important}
+
+/* Header */
+.header{background:linear-gradient(135deg,#ff6b35,#ff8f65);color:#fff;padding:16px;position:sticky;top:0;z-index:100}
+.header h1{font-size:20px;font-weight:600}
+.header-row{display:flex;justify-content:space-between;align-items:center}
+.back-btn{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;padding:0 8px}
+.header-right{display:flex;gap:8px;align-items:center}
+.user-badge{font-size:13px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:20px}
+.logout-btn{background:none;border:1px solid rgba(255,255,255,.5);color:#fff;padding:4px 10px;border-radius:20px;font-size:12px;cursor:pointer}
+
+/* Forms */
+.page{padding:16px 0}
+.card{background:var(--card);border-radius:var(--radius);padding:20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.card h2{font-size:18px;margin-bottom:16px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;color:var(--text2);margin-bottom:4px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:15px;background:var(--bg);outline:none;transition:border .2s}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--primary)}
+.form-row{display:flex;gap:10px}
+.form-row .form-group{flex:1}
+.btn{display:inline-block;padding:12px 24px;border-radius:8px;font-size:15px;font-weight:600;border:none;cursor:pointer;text-align:center;width:100%;transition:all .2s}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-primary:disabled{background:#ccc;cursor:not-allowed}
+.btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--border)}
+.btn-blue{background:var(--blue);color:#fff}
+.btn-red{background:var(--red);color:#fff}
+.btn-sm{padding:8px 16px;font-size:13px;width:auto}
+.btn-group{display:flex;gap:10px;margin-top:12px}
+
+/* Tabs */
+.tabs{display:flex;background:var(--card);border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:99;box-shadow:0 2px 4px rgba(0,0,0,.06)}
+.tab{flex:1;text-align:center;padding:12px;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+
+/* Search bar */
+.home-search{margin:12px 0 8px}
+.home-search input{width:100%;padding:10px 16px 10px 36px;border:1px solid var(--border);border-radius:20px;font-size:14px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2386868b' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") no-repeat 12px center;outline:none}
+
+/* Category scroll */
+.category-scroll{display:flex;overflow-x:auto;gap:12px;padding:8px 0 12px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.category-scroll::-webkit-scrollbar{display:none}
+.category-pill{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 14px;border-radius:12px;cursor:pointer;transition:all .2s;min-width:56px;text-align:center}
+.category-pill .emoji{font-size:24px;line-height:1;display:block}
+.category-pill .name{font-size:11px;color:var(--text2);white-space:nowrap;display:block;line-height:1.2}
+.category-pill.active{background:var(--primary)}
+.category-pill.active .name{color:#fff}
+
+/* Section title */
+.section-title{font-size:16px;font-weight:600;margin:16px 0 12px;display:flex;justify-content:space-between;align-items:center}
+.section-title .more{font-size:13px;color:var(--text2);font-weight:400}
+
+/* Merchant grid */
+.merchant-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:12px}
+.merchant-card{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:transform .15s,box-shadow .15s}
+.merchant-card:active{transform:scale(.98)}
+.merchant-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1)}
+.card-banner{height:120px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.card-banner img{width:100%;height:100%;object-fit:cover}
+.card-banner .placeholder{font-size:48px}
+.card-info{padding:10px}
+.card-name{font-size:14px;font-weight:600;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);margin-bottom:4px}
+.card-rating{color:#ff9500;font-weight:600}
+.card-promo{display:inline-block;font-size:10px;color:var(--primary);border:1px solid var(--primary);padding:1px 4px;border-radius:4px}
+
+/* Pool discover card */
+.pool-discover-card{display:flex;align-items:center;background:var(--card);border-radius:var(--radius);padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.pool-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;margin-right:12px;flex-shrink:0}
+.pool-info{flex:1;min-width:0}
+.pool-merchant{font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pool-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.pool-join-btn{width:36px;height:36px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:22px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:transform .15s}
+.pool-join-btn:active{transform:scale(.9)}
+
+/* Pool item (my pools) */
+.pool-item{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:transform .15s}
+.pool-item:active{transform:scale(.98)}
+.pool-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pool-merchant-name{font-size:16px;font-weight:600}
+.pool-status{font-size:12px;padding:3px 8px;border-radius:12px;font-weight:500}
+.pool-status.FORMING,.pool-status.CREATED{background:#fff3e0;color:#f57c00}
+.pool-status.FORMED{background:#e8f5e9;color:#388e3c}
+.pool-status.ORDERED{background:#e3f2fd;color:#1976d2}
+.pool-status.DISSOLVED{background:#fce4ec;color:#c62828}
+.pool-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--text2)}
+
+/* Pool detail */
+.detail-section{margin-bottom:16px}
+.detail-section h3{font-size:15px;font-weight:600;margin-bottom:10px;color:var(--text)}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.info-item{font-size:13px}
+.info-item .label{color:var(--text2)}
+.info-item .value{font-weight:600;font-size:15px}
+.invite-code{font-size:28px;font-weight:700;letter-spacing:4px;color:var(--primary);text-align:center;padding:12px;background:var(--bg);border-radius:8px;margin:8px 0}
+
+/* Participant */
+.participant{padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
+.participant-header{display:flex;justify-content:space-between;margin-bottom:6px}
+.participant-name{font-weight:600;font-size:14px}
+.participant-role{font-size:11px;padding:2px 6px;border-radius:4px;background:var(--bg)}
+.participant-role.CREATOR{background:var(--primary);color:#fff}
+.participant-items{font-size:13px;color:var(--text2)}
+.participant-amount{font-weight:600;color:var(--primary)}
+
+/* Items form */
+.item-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.item-row input{flex:1}
+.item-row .qty{width:60px;text-align:center}
+.remove-item{background:none;border:none;color:var(--red);font-size:20px;cursor:pointer;padding:4px}
+
+/* Orders */
+.order-item{background:var(--card);border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.order-header{display:flex;justify-content:space-between;align-items:center}
+.order-id{font-size:12px;color:var(--text2)}
+
+/* Empty state */
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:12px}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:24px;transform:none;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:28px;box-shadow:0 4px 12px rgba(255,107,53,.4);cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center}
+.fab:hover{transform:scale(1.05)}
+
+/* Toast */
+.toast{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:10px 20px;border-radius:8px;font-size:14px;z-index:1000;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+.toast.error{background:var(--red)}
+
+/* Loading */
+.loading{text-align:center;padding:20px;color:var(--text2)}
+.spinner{display:inline-block;width:24px;height:24px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Payment record */
+.pay-record{display:flex;justify-content:space-between;align-items:center;padding:12px;border-bottom:1px solid var(--border)}
+.pay-record:last-child{border:none}
+.pay-type{font-size:13px;padding:2px 6px;border-radius:4px}
+.pay-type.CHARGE{background:#e3f2fd;color:#1976d2}
+.pay-type.REFUND{background:#fce4ec;color:#c62828}
+.pay-status{font-size:12px}
+.pay-status.SUCCESS{color:var(--green)}
+.pay-status.PENDING{color:#f57c00}
+
+/* Merchant detail header */
+.merchant-header{border-radius:var(--radius);overflow:hidden;margin-bottom:16px;position:relative}
+.merchant-header img{width:100%;height:160px;object-fit:cover;display:block}
+.merchant-header-info{padding:16px;background:var(--card)}
+.merchant-header-info h2{font-size:20px;margin-bottom:8px}
+.merchant-detail-meta{display:flex;gap:16px;font-size:13px;color:var(--text2);margin-bottom:8px}
+.merchant-promo-tag{display:inline-block;font-size:12px;color:var(--primary);border:1px solid var(--primary);padding:2px 8px;border-radius:4px}
+
+/* Menu item */
+.menu-section-title{font-size:15px;font-weight:600;margin:16px 0 10px;padding-left:8px;border-left:3px solid var(--primary)}
+.menu-item{display:flex;align-items:center;background:var(--card);border-radius:10px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.menu-item-img{width:80px;height:80px;border-radius:8px;object-fit:cover;flex-shrink:0;margin-right:12px}
+.menu-item-img-placeholder{width:80px;height:80px;border-radius:8px;flex-shrink:0;margin-right:12px;display:flex;align-items:center;justify-content:center;font-size:32px;background:#f0f0f0}
+.menu-item-info{flex:1;min-width:0}
+.menu-item-name{font-size:15px;font-weight:600;margin-bottom:2px}
+.menu-item-desc{font-size:12px;color:var(--text2);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-item-bottom{display:flex;justify-content:space-between;align-items:center}
+.menu-item-price{font-size:16px;font-weight:700;color:var(--primary)}
+.menu-item-price span{font-size:12px;font-weight:400}
+.add-btn{width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;border:none;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .15s;flex-shrink:0}
+.add-btn:active{transform:scale(.85)}
+.add-btn.bounce{animation:bounce-in .3s ease}
+@keyframes bounce-in{0%{transform:scale(1)}50%{transform:scale(1.3)}100%{transform:scale(1)}}
+
+/* Cart bar */
+.cart-bar{position:fixed;bottom:0;left:0;width:100%;background:var(--text);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;z-index:100;border-radius:16px 16px 0 0}
+.cart-info{font-size:14px}
+.cart-info .count{background:var(--primary);border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-right:6px}
+.cart-bar .btn-primary{width:auto;padding:8px 20px;border-radius:20px;font-size:14px}
+.cart-badge{position:relative}
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div id="page-login" class="container">
+  <div style="padding:60px 0 30px;text-align:center">
+    <div style="font-size:64px;margin-bottom:12px">&#127829;</div>
+    <h1 style="font-size:28px;color:var(--primary)">拼单外卖</h1>
+    <p style="color:var(--text2);margin-top:4px">Food Pooling System</p>
+  </div>
+  <div class="card">
+    <div style="display:flex;margin-bottom:20px">
+      <button class="btn btn-primary" style="flex:1;margin-right:8px" onclick="showAuthTab('login')">登录</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="showAuthTab('register')">注册</button>
+    </div>
+    <div id="login-form">
+      <div class="form-group">
+        <label>手机号</label>
+        <input type="tel" id="login-phone" placeholder="请输入手机号" maxlength="11">
+      </div>
+      <div class="form-group">
+        <label>验证码</label>
+        <input type="text" id="login-code" placeholder="任意输入4位数字" maxlength="6">
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">登 录</button>
+    </div>
+    <div id="register-form" class="hidden">
+      <div class="form-group">
+        <label>手机号</label>
+        <input type="tel" id="reg-phone" placeholder="请输入手机号" maxlength="11">
+      </div>
+      <div class="form-group">
+        <label>验证码</label>
+        <input type="text" id="reg-code" placeholder="任意输入4位数字" maxlength="6">
+      </div>
+      <div class="form-group">
+        <label>昵称</label>
+        <input type="text" id="reg-nickname" placeholder="给自己起个名字">
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()">注 册</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MAIN PAGE ==================== -->
+<div id="page-main" class="hidden">
+  <div class="header">
+    <div class="header-row">
+      <h1>&#127829; 拼单外卖</h1>
+      <div class="header-right">
+        <span class="user-badge" id="user-badge"></span>
+        <button class="logout-btn" onclick="doLogout()">退出</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchMainTab('home')">首页</div>
+    <div class="tab" onclick="switchMainTab('pools')">拼单</div>
+    <div class="tab" onclick="switchMainTab('orders')">订单</div>
+    <div class="tab" onclick="switchMainTab('payments')">支付</div>
+  </div>
+
+  <div class="container">
+    <!-- Tab: Home -->
+    <div id="tab-home" class="page">
+      <div class="home-search">
+        <input type="text" id="search-input" placeholder="搜索商家或菜品..." oninput="filterCatalog()">
+      </div>
+      <div class="category-scroll" id="category-pills"></div>
+      <div class="section-title">附近拼单</div>
+      <div id="nearby-pools"></div>
+      <div class="section-title">推荐商家</div>
+      <div class="merchant-grid" id="merchant-grid"></div>
+    </div>
+    <!-- Tab: My Pools -->
+    <div id="tab-pools" class="page hidden"></div>
+    <!-- Tab: Orders -->
+    <div id="tab-orders" class="page hidden"></div>
+    <!-- Tab: Payments -->
+    <div id="tab-payments" class="page hidden"></div>
+  </div>
+
+  <button class="fab" onclick="showCreatePool()" title="创建拼单">+</button>
+</div>
+
+<!-- ==================== CREATE POOL PAGE ==================== -->
+<div id="page-create" class="hidden">
+  <div class="header">
+    <div class="header-row">
+      <button class="back-btn" onclick="goBack()">&larr;</button>
+      <h1>发起拼单</h1>
+      <div></div>
+    </div>
+  </div>
+  <div class="container page">
+    <div class="card">
+      <div class="form-group">
+        <label>商家名称</label>
+        <input type="text" id="create-merchant" placeholder="如: 张记麻辣烫">
+      </div>
+      <div class="form-group">
+        <label>商家ID（选填）</label>
+        <input type="text" id="create-merchant-id" placeholder="从商家页面发起会自动填写">
+      </div>
+      <div class="form-group">
+        <label>收货地址</label>
+        <select id="create-address"></select>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <input type="text" id="create-remark" placeholder="如: 微辣就好">
+      </div>
+    </div>
+    <div class="card">
+      <h2>成团规则</h2>
+      <div class="form-group">
+        <label>最少人数</label>
+        <input type="number" id="create-min-members" value="2" min="2" max="20">
+      </div>
+      <div class="form-group">
+        <label>最低金额 (分, 0=不限)</label>
+        <input type="number" id="create-min-amount" value="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>有效期 (分钟)</label>
+        <input type="number" id="create-deadline" value="30" min="5" max="120">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="doCreatePool()">发起拼单</button>
+  </div>
+</div>
+
+<!-- ==================== POOL DETAIL PAGE ==================== -->
+<div id="page-pool-detail" class="hidden">
+  <div class="header">
+    <div class="header-row">
+      <button class="back-btn" onclick="goBack()">&larr;</button>
+      <h1 id="detail-title">拼单详情</h1>
+      <div></div>
+    </div>
+  </div>
+  <div class="container page" id="pool-detail-content"></div>
+</div>
+
+<!-- ==================== JOIN POOL PAGE ==================== -->
+<div id="page-join" class="hidden">
+  <div class="header">
+    <div class="header-row">
+      <button class="back-btn" onclick="goBack()">&larr;</button>
+      <h1>加入拼单</h1>
+      <div></div>
+    </div>
+  </div>
+  <div class="container page">
+    <div class="card">
+      <div class="form-group">
+        <label>收货地址</label>
+        <select id="join-address"></select>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <input type="text" id="join-remark" placeholder="如: 不要香菜">
+      </div>
+    </div>
+    <div class="card">
+      <h2>选择菜品</h2>
+      <div id="join-items">
+        <div class="item-row">
+          <input type="text" placeholder="菜品名称" class="item-name" value="Main Dish">
+          <input type="number" placeholder="单价(分)" class="item-price" value="2500" style="width:90px">
+          <input type="number" placeholder="数量" class="item-qty" value="1" min="1" style="width:60px">
+          <button class="remove-item" onclick="this.parentElement.remove()">&times;</button>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="addJoinItemRow()">+ 添加菜品</button>
+    </div>
+    <button class="btn btn-primary" onclick="doJoinPool()">加入拼单</button>
+  </div>
+</div>
+
+<!-- ==================== MERCHANT DETAIL PAGE ==================== -->
+<div id="page-merchant-detail" class="hidden">
+  <div class="header">
+    <div class="header-row">
+      <button class="back-btn" onclick="goBack()">&larr;</button>
+      <h1 id="merchant-detail-title">商家详情</h1>
+      <div></div>
+    </div>
+  </div>
+  <div class="container page" id="merchant-detail-content" style="padding-bottom:80px"></div>
+  <div class="cart-bar hidden" id="cart-bar">
+    <div class="cart-info">
+      <span class="count" id="cart-count">0</span>
+      <span>件 · ¥<span id="cart-total">0.00</span></span>
+    </div>
+    <button class="btn btn-primary" onclick="createPoolFromCart()">去开团</button>
+  </div>
+</div>
+
+<script>
+// ============== CONFIG ==============
+const API = 'http://localhost:8080';
+let currentUser = null;
+let currentPage = 'login';
+let pageStack = [];
+let currentPoolId = null;
+let activeCategory = 'all';
+let cart = []; // [{ merchantId, merchantName, itemId, name, price, qty, imageUrl }]
+let currentMerchant = null; // merchant being viewed
+let pendingItems = null; // items from cart for pool creation
+let allMerchants = []; // cached from API
+
+const CATEGORIES = [
+  { id: 'all', name: '全部', emoji: ' ' },
+  { id: '川湘菜', name: '川湘菜', emoji: '️' },
+  { id: '炸鸡汉堡', name: '炸鸡汉堡', emoji: ' ' },
+  { id: '奶茶甜品', name: '奶茶甜品', emoji: ' ' },
+  { id: '日韩料理', name: '日韩料理', emoji: ' ' },
+  { id: '轻食沙拉', name: '轻食沙拉', emoji: ' ' },
+  { id: '烧烤', name: '烧烤', emoji: ' ' },
+  { id: '粉面馆', name: '粉面馆', emoji: ' ' },
+  { id: '小吃', name: '小吃', emoji: ' ' },
+];
+
+const CATEGORY_GRADIENTS = {
+  '川湘菜': 'linear-gradient(135deg, #ff6b35, #ff3b30)',
+  '炸鸡汉堡': 'linear-gradient(135deg, #ffcc00, #ff9500)',
+  '奶茶甜品': 'linear-gradient(135deg, #ff6b9d, #c44569)',
+  '日韩料理': 'linear-gradient(135deg, #4ecdc4, #44a08d)',
+  '轻食沙拉': 'linear-gradient(135deg, #56ab2f, #a8e063)',
+  '烧烤': 'linear-gradient(135deg, #f2994a, #eb5757)',
+  '粉面馆': 'linear-gradient(135deg, #f7971e, #ffd200)',
+  '小吃': 'linear-gradient(135deg, #e44d26, #f16529)',
+};
+
+// ============== UTILS ==============
+function toast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  setTimeout(() => t.className = 'toast', 2500);
+}
+
+function $(id) { return document.getElementById(id); }
+
+async function api(method, path, body, auth) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (auth && currentUser) opts.headers['Authorization'] = 'Bearer ' + currentUser.token;
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const res = await fetch(API + path, opts);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    toast('网络错误: ' + e.message, true);
+    return null;
+  }
+}
+
+function navigate(page) {
+  pageStack.push(currentPage);
+  showPage(page);
+}
+function goBack() {
+  currentPage = pageStack.pop() || 'main';
+  showPage(currentPage);
+}
+function showPage(page) {
+  currentPage = page;
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.classList.add('hidden'));
+  $('page-' + page).classList.remove('hidden');
+  if (page === 'main') loadMainData();
+}
+
+function formatPrice(fen) { return (fen / 100).toFixed(2); }
+
+function formatTime(t) {
+  if (!t) return '-';
+  try {
+    const d = new Date(t);
+    return (d.getMonth()+1) + '/' + d.getDate() + ' ' + d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+  } catch { return t; }
+}
+
+// ============== AUTH ==============
+function showAuthTab(tab) {
+  $('login-form').classList.toggle('hidden', tab !== 'login');
+  $('register-form').classList.toggle('hidden', tab !== 'register');
+}
+
+async function doRegister() {
+  const phone = $('reg-phone').value.trim();
+  const code = $('reg-code').value.trim();
+  const nickname = $('reg-nickname').value.trim();
+  if (!phone || !code || !nickname) return toast('请填写所有字段', true);
+  const res = await api('POST', '/api/v1/users/register', { phone, code, nickname });
+  if (res && res.code === 0) {
+    currentUser = res.data;
+    localStorage.setItem('fp_user', JSON.stringify(currentUser));
+    enterMain();
+  } else {
+    toast(res?.message || '注册失败', true);
+  }
+}
+
+async function doLogin() {
+  const phone = $('login-phone').value.trim();
+  const code = $('login-code').value.trim();
+  if (!phone || !code) return toast('请填写手机号和验证码', true);
+  const res = await api('POST', '/api/v1/users/login', { phone, code });
+  if (res && res.code === 0) {
+    currentUser = res.data;
+    localStorage.setItem('fp_user', JSON.stringify(currentUser));
+    enterMain();
+  } else {
+    toast(res?.message || '登录失败', true);
+  }
+}
+
+function doLogout() {
+  currentUser = null;
+  cart = [];
+  localStorage.removeItem('fp_user');
+  pageStack = [];
+  showPage('login');
+}
+
+function enterMain() {
+  $('user-badge').textContent = currentUser.nickname || currentUser.phone;
+  pageStack = [];
+  showPage('main');
+}
+
+// ============== MAIN TABS ==============
+function switchMainTab(tab) {
+  const tabs = ['home', 'pools', 'orders', 'payments'];
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.classList.toggle('active', tabs[i] === tab);
+  });
+  tabs.forEach(t => {
+    $('tab-' + t).classList.toggle('hidden', t !== tab);
+  });
+  if (tab === 'home') loadHomePage();
+  else if (tab === 'pools') loadPools();
+  else if (tab === 'orders') loadOrders();
+  else if (tab === 'payments') loadPayments();
+}
+
+function loadMainData() { loadHomePage(); }
+
+// ============== HOME PAGE ==============
+async function loadHomePage() {
+  renderCategoryPills();
+  loadNearbyPools();
+  loadMerchants(activeCategory);
+}
+
+function renderCategoryPills() {
+  $('category-pills').innerHTML = CATEGORIES.map(c => `
+    <div class="category-pill ${c.id === activeCategory ? 'active' : ''}" onclick="selectCategory('${c.id}')">
+      <span class="emoji">${c.emoji}</span>
+      <span class="name">${c.name}</span>
+    </div>
+  `).join('');
+}
+
+function selectCategory(catId) {
+  activeCategory = catId;
+  renderCategoryPills();
+  loadMerchants(catId);
+}
+
+async function loadMerchants(category) {
+  let url = '/api/v1/merchants';
+  if (category && category !== 'all') url += '?category=' + encodeURIComponent(category);
+  const res = await api('GET', url, null, false);
+  if (res && res.code === 0) {
+    allMerchants = res.data || [];
+    renderMerchantGrid(allMerchants);
+  }
+}
+
+function filterCatalog() {
+  const q = $('search-input').value.trim().toLowerCase();
+  if (!q) { renderMerchantGrid(allMerchants); return; }
+  const filtered = allMerchants.filter(m =>
+    m.name.toLowerCase().includes(q) ||
+    (m.category && m.category.toLowerCase().includes(q))
+  );
+  renderMerchantGrid(filtered);
+}
+
+function renderMerchantGrid(merchants) {
+  if (!merchants || merchants.length === 0) {
+    $('merchant-grid').innerHTML = '<div class="empty" style="grid-column:1/-1"><p>暂无商家</p></div>';
+    return;
+  }
+  $('merchant-grid').innerHTML = merchants.map(m => {
+    const gradient = CATEGORY_GRADIENTS[m.category] || 'linear-gradient(135deg,#667eea,#764ba2)';
+    return `
+    <div class="merchant-card" onclick="showMerchantDetail('${m.merchantId}')">
+      <div class="card-banner" style="background:${gradient}">
+        ${m.imageUrl ? `<img src="${m.imageUrl}" alt="${m.name}" onerror="this.style.display='none';this.parentElement.innerHTML+='<span class=placeholder></span>'">` : `<span class="placeholder"></span>`}
+      </div>
+      <div class="card-info">
+        <div class="card-name">${m.name}</div>
+        <div class="card-meta">
+          <span class="card-rating">${m.rating} </span>
+          <span>月售${m.monthlySales || 0}</span>
+          <span>${m.deliveryTime || ''}</span>
+        </div>
+        ${m.promo ? `<span class="card-promo">${m.promo}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadNearbyPools() {
+  $('nearby-pools').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const res = await api('GET', '/api/v1/pools/available?page=1&size=10', null, true);
+  if (!res || res.code !== 0 || !res.data || res.data.length === 0) {
+    $('nearby-pools').innerHTML = '<div class="empty" style="padding:20px;color:var(--text2);font-size:13px">暂无可加入的拼单</div>';
+    return;
+  }
+  renderNearbyPools(res.data);
+}
+
+function renderNearbyPools(pools) {
+  const gradients = Object.values(CATEGORY_GRADIENTS);
+  $('nearby-pools').innerHTML = pools.map((p, i) => {
+    const grad = gradients[i % gradients.length];
+    return `
+    <div class="pool-discover-card">
+      <div class="pool-icon" style="background:${grad}"></div>
+      <div class="pool-info">
+        <div class="pool-merchant">${p.merchantName}</div>
+        <div class="pool-meta">${p.status === 'FORMING' ? '拼单进行中' : '等待成团'} · ${formatTime(p.joinedAt)}</div>
+      </div>
+      <button class="pool-join-btn" onclick="showJoinPage('${p.poolId}')">+</button>
+    </div>`;
+  }).join('');
+}
+
+// ============== MERCHANT DETAIL ==============
+async function showMerchantDetail(merchantId) {
+  navigate('merchant-detail');
+  $('merchant-detail-content').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  // Load merchant info
+  const mRes = await api('GET', '/api/v1/merchants/' + merchantId, null, false);
+  if (!mRes || mRes.code !== 0) {
+    $('merchant-detail-content').innerHTML = '<div class="empty">商家不存在</div>';
+    return;
+  }
+  currentMerchant = mRes.data;
+  $('merchant-detail-title').textContent = currentMerchant.name;
+
+  // Load menu items
+  const iRes = await api('GET', '/api/v1/merchants/' + merchantId + '/items', null, false);
+  const items = (iRes && iRes.code === 0) ? iRes.data : [];
+
+  const gradient = CATEGORY_GRADIENTS[currentMerchant.category] || 'linear-gradient(135deg,#667eea,#764ba2)';
+
+  let html = `
+    <div class="merchant-header">
+      ${currentMerchant.imageUrl ? `<img src="${currentMerchant.imageUrl}" alt="${currentMerchant.name}" onerror="this.style.display='none'">` : ''}
+      <div style="background:${gradient};height:${currentMerchant.imageUrl ? '0' : '120px'};display:flex;align-items:center;justify-content:center">
+        ${!currentMerchant.imageUrl ? '<span style="font-size:48px"></span>' : ''}
+      </div>
+      <div class="merchant-header-info">
+        <h2>${currentMerchant.name}</h2>
+        <div class="merchant-detail-meta">
+          <span>${currentMerchant.rating} </span>
+          <span>月售${currentMerchant.monthlySales || 0}</span>
+          <span>${currentMerchant.deliveryTime || ''}</span>
+        </div>
+        ${currentMerchant.promo ? `<span class="merchant-promo-tag">${currentMerchant.promo}</span>` : ''}
+        ${currentMerchant.deliveryFee > 0 ? `<span style="font-size:12px;color:var(--text2);margin-left:8px">配送费 ¥${formatPrice(currentMerchant.deliveryFee)}</span>` : '<span style="font-size:12px;color:var(--green);margin-left:8px">免配送费</span>'}
+      </div>
+    </div>
+  `;
+
+  if (items.length === 0) {
+    html += '<div class="empty">暂无菜品</div>';
+  } else {
+    // Group by category
+    const groups = {};
+    items.forEach(item => {
+      const cat = item.category || '其他';
+      if (!groups[cat]) groups[cat] = [];
+      groups[cat].push(item);
+    });
+
+    for (const [cat, catItems] of Object.entries(groups)) {
+      html += `<div class="menu-section-title">${cat}</div>`;
+      html += catItems.map(item => `
+        <div class="menu-item">
+          ${item.imageUrl ? `<img class="menu-item-img" src="${item.imageUrl}" alt="${item.name}" onerror="this.outerHTML='<div class=menu-item-img-placeholder></div>'">` : '<div class="menu-item-img-placeholder"></div>'}
+          <div class="menu-item-info">
+            <div class="menu-item-name">${item.name}</div>
+            <div class="menu-item-desc">${item.description || ''}</div>
+            <div class="menu-item-bottom">
+              <div class="menu-item-price"><span>¥</span>${formatPrice(item.price)}</div>
+              <button class="add-btn" id="add-${item.itemId}" onclick="addToCart('${item.merchantId}', '${item.itemId}', '${item.name.replace(/'/g, "\\'")}', ${item.price}, '${item.imageUrl || ''}')">+</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+
+  $('merchant-detail-content').innerHTML = html;
+  updateCartBar();
+}
+
+// ============== CART ==============
+function addToCart(merchantId, itemId, name, price, imageUrl) {
+  // Check if cart has items from different merchant
+  if (cart.length > 0 && cart[0].merchantId !== merchantId) {
+    if (!confirm('切换商家将清空当前购物车，确认？')) return;
+    cart = [];
+  }
+
+  const existing = cart.find(c => c.itemId === itemId);
+  if (existing) {
+    existing.qty++;
+  } else {
+    cart.push({ merchantId, merchantName: currentMerchant?.name || '', itemId, name, price, qty: 1, imageUrl });
+  }
+
+  // Bounce animation
+  const btn = document.getElementById('add-' + itemId);
+  if (btn) {
+    btn.classList.remove('bounce');
+    void btn.offsetWidth; // reflow
+    btn.classList.add('bounce');
+  }
+
+  toast('已添加 ' + name);
+  updateCartBar();
+}
+
+function updateCartBar() {
+  const bar = $('cart-bar');
+  if (cart.length === 0) {
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+  const count = cart.reduce((s, c) => s + c.qty, 0);
+  const total = cart.reduce((s, c) => s + c.price * c.qty, 0);
+  $('cart-count').textContent = count;
+  $('cart-total').textContent = formatPrice(total);
+}
+
+function createPoolFromCart() {
+  if (cart.length === 0) return toast('购物车为空', true);
+  const merchant = cart[0];
+
+  // Prepare items for pending
+  pendingItems = cart.map(c => ({
+    itemId: c.itemId,
+    itemName: c.name,
+    unitPrice: c.price,
+    quantity: c.qty
+  }));
+
+  // Navigate to create page with pre-filled data
+  navigate('create');
+  $('create-merchant').value = merchant.merchantName;
+  $('create-merchant').readOnly = true;
+  $('create-merchant-id').value = merchant.merchantId;
+  $('create-merchant-id').readOnly = true;
+  loadCreateAddresses();
+}
+
+// ============== POOLS ==============
+async function loadPools() {
+  $('tab-pools').innerHTML = '<div class="loading"><div class="spinner"></div><p style="margin-top:8px">加载中...</p></div>';
+  const res = await api('GET', '/api/v1/pools/my', null, true);
+  if (!res || res.code !== 0 || !res.data || res.data.length === 0) {
+    $('tab-pools').innerHTML = `<div class="empty"><div class="empty-icon">&#127829;</div><p>还没有拼单</p><p style="font-size:13px;margin-top:8px"><a href="javascript:void(0)" onclick="switchMainTab('home')" style="color:var(--primary)">去发现</a></p></div>`;
+    return;
+  }
+  $('tab-pools').innerHTML = res.data.map(p => `
+    <div class="pool-item" onclick="showPoolDetail('${p.poolId}')">
+      <div class="pool-header">
+        <span class="pool-merchant-name">${p.merchantName}</span>
+        <span class="pool-status ${p.status}">${statusText(p.status)}</span>
+      </div>
+      <div class="pool-meta">
+        <span>${p.role === 'CREATOR' ? '我发起的' : '我参与的'}</span>
+        <span>${formatTime(p.joinedAt)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function statusText(s) {
+  return { FORMING: '拼单中', FORMED: '已成团', ORDERED: '已下单', DISSOLVED: '已解散', CREATED: '已创建' }[s] || s;
+}
+
+// ============== POOL DETAIL ==============
+async function showPoolDetail(poolId) {
+  currentPoolId = poolId;
+  navigate('pool-detail');
+  $('pool-detail-content').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const res = await api('GET', '/api/v1/pools/' + poolId, null, true);
+  if (!res || res.code !== 0) {
+    $('pool-detail-content').innerHTML = '<div class="empty">拼单不存在</div>';
+    return;
+  }
+  const p = res.data;
+  $('detail-title').textContent = p.merchantName;
+
+  let html = `
+    <div class="card">
+      <div class="pool-header">
+        <span class="pool-merchant-name">${p.merchantName}</span>
+        <span class="pool-status ${p.status}">${statusText(p.status)}</span>
+      </div>
+      <div style="margin:12px 0">
+        <div class="info-grid">
+          <div class="info-item"><div class="label">参与人数</div><div class="value">${p.currentMembers} / ${p.formationRule?.minMembers || '-'}</div></div>
+          <div class="info-item"><div class="label">菜品总额</div><div class="value">¥${formatPrice(p.currentTotalAmount)}</div></div>
+          <div class="info-item"><div class="label">创建时间</div><div class="value">${formatTime(p.createdAt)}</div></div>
+          <div class="info-item"><div class="label">截止时间</div><div class="value">${formatTime(p.expiresAt)}</div></div>
+        </div>
+      </div>
+      ${p.inviteCode ? `<div class="invite-code">${p.inviteCode}</div><p style="text-align:center;font-size:12px;color:var(--text2)">邀请码，分享给好友</p>` : ''}
+    </div>
+
+    <div class="detail-section">
+      <h3>参与者 (${p.participants?.length || 0})</h3>
+      ${(p.participants || []).map(pt => `
+        <div class="participant">
+          <div class="participant-header">
+            <span class="participant-name">${pt.nickname || pt.userId}</span>
+            <span class="participant-role ${pt.role || ''}">${pt.role === 'CREATOR' ? '发起者' : '成员'}</span>
+          </div>
+          <div class="participant-items">
+            ${(pt.items || []).map(i => `${i.itemName} x${i.quantity} (¥${formatPrice(i.unitPrice)})`).join('<br>') || '暂无菜品'}
+          </div>
+          <div style="text-align:right;margin-top:4px">
+            <span class="participant-amount">¥${formatPrice(pt.subtotal)}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  if (p.status === 'FORMING' || p.status === 'CREATED') {
+    html += `<div class="btn-group">
+      <button class="btn btn-primary" onclick="showJoinPage('${p.poolId}')">加入 / 加菜</button>
+      <button class="btn btn-red btn-sm" onclick="leavePool('${p.poolId}')">退出</button>
+    </div>`;
+  }
+
+  $('pool-detail-content').innerHTML = html;
+}
+
+async function leavePool(poolId) {
+  if (!confirm('确定退出拼单？')) return;
+  const res = await api('POST', '/api/v1/pools/' + poolId + '/leave', {}, true);
+  if (res && res.code === 0) {
+    toast('已退出拼单');
+    goBack();
+  } else {
+    toast(res?.message || '退出失败', true);
+  }
+}
+
+// ============== CREATE POOL ==============
+async function showCreatePool() {
+  navigate('create');
+  // Reset fields if not from cart
+  if (!pendingItems) {
+    $('create-merchant').value = '';
+    $('create-merchant').readOnly = false;
+    $('create-merchant-id').value = '';
+    $('create-merchant-id').readOnly = false;
+  }
+  loadCreateAddresses();
+}
+
+async function loadCreateAddresses() {
+  if (!currentUser) return;
+  const res = await api('GET', '/api/v1/users/' + currentUser.userId + '/addresses', null, true);
+  const select = $('create-address');
+  select.innerHTML = '';
+  if (res && res.code === 0 && res.data.length > 0) {
+    res.data.forEach(a => {
+      select.innerHTML += `<option value="${a.addressId}">${a.label} - ${a.detail}</option>`;
+    });
+  } else {
+    select.innerHTML = '<option value="">请先添加地址</option>';
+  }
+}
+
+async function doCreatePool() {
+  const merchant = $('create-merchant').value.trim();
+  const merchantId = $('create-merchant-id').value.trim();
+  const addressId = $('create-address').value;
+  const remark = $('create-remark').value.trim();
+  const minMembers = parseInt($('create-min-members').value) || 2;
+  const minAmount = parseInt($('create-min-amount').value) || 0;
+  const deadline = parseInt($('create-deadline').value) || 30;
+
+  if (!merchant) return toast('请输入商家名称', true);
+  if (!addressId) return toast('请选择收货地址', true);
+
+  const body = {
+    merchantId: merchantId || 'M' + Date.now(),
+    merchantName: merchant,
+    creatorAddressId: addressId,
+    formationRule: { minMembers, minAmount, deadlineMinutes: deadline },
+    remark
+  };
+
+  const res = await api('POST', '/api/v1/pools', body, true);
+  if (res && res.code === 0) {
+    const poolId = res.data.poolId;
+
+    // If we have pending items from cart, add them now via addItems API
+    if (pendingItems && pendingItems.length > 0) {
+      await api('POST', '/api/v1/pools/' + poolId + '/items', pendingItems, true);
+      pendingItems = null;
+      cart = [];
+    }
+
+    toast('拼单发起成功！');
+    pageStack = ['main'];
+    showPoolDetail(poolId);
+  } else {
+    toast(res?.message || '创建失败', true);
+  }
+}
+
+// ============== JOIN POOL ==============
+function showJoinPage(poolId) {
+  currentPoolId = poolId;
+  navigate('join');
+  loadJoinAddresses();
+
+  // If cart has items, pre-fill
+  if (cart.length > 0) {
+    const itemsDiv = $('join-items');
+    itemsDiv.innerHTML = '';
+    cart.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'item-row';
+      div.innerHTML = `
+        <input type="text" placeholder="菜品名称" class="item-name" value="${c.name}">
+        <input type="number" placeholder="单价(分)" class="item-price" value="${c.price}" style="width:90px">
+        <input type="number" placeholder="数量" class="item-qty" value="${c.qty}" min="1" style="width:60px">
+        <button class="remove-item" onclick="this.parentElement.remove()">&times;</button>
+      `;
+      itemsDiv.appendChild(div);
+    });
+  }
+}
+
+async function loadJoinAddresses() {
+  const res = await api('GET', '/api/v1/users/' + currentUser.userId + '/addresses', null, true);
+  const select = $('join-address');
+  select.innerHTML = '';
+  if (res && res.code === 0 && res.data.length > 0) {
+    res.data.forEach(a => {
+      select.innerHTML += `<option value="${a.addressId}">${a.label} - ${a.detail}</option>`;
+    });
+  } else {
+    select.innerHTML = '<option value="">暂无地址</option>';
+  }
+}
+
+function addJoinItemRow() {
+  const div = document.createElement('div');
+  div.className = 'item-row';
+  div.innerHTML = `
+    <input type="text" placeholder="菜品名称" class="item-name">
+    <input type="number" placeholder="单价(分)" class="item-price" value="500" style="width:90px">
+    <input type="number" placeholder="数量" class="item-qty" value="1" min="1" style="width:60px">
+    <button class="remove-item" onclick="this.parentElement.remove()">&times;</button>
+  `;
+  $('join-items').appendChild(div);
+}
+
+async function doJoinPool() {
+  const addressId = $('join-address').value;
+  const remark = $('join-remark').value.trim();
+  if (!addressId) return toast('请选择收货地址', true);
+
+  const itemRows = $('join-items').querySelectorAll('.item-row');
+  const items = [];
+  itemRows.forEach(row => {
+    const name = row.querySelector('.item-name').value.trim();
+    const price = parseInt(row.querySelector('.item-price').value) || 0;
+    const qty = parseInt(row.querySelector('.item-qty').value) || 1;
+    if (name && price > 0) {
+      items.push({ itemId: 'F' + Date.now() + Math.random().toString(36).substr(2,4), itemName: name, unitPrice: price, quantity: qty });
+    }
+  });
+
+  const body = { addressId, items, remark };
+  const res = await api('POST', '/api/v1/pools/' + currentPoolId + '/join', body, true);
+  if (res && res.code === 0) {
+    toast(res.data.status === 'FORMED' ? '已成团！' : '已加入拼单！');
+    cart = [];
+    pageStack.pop();
+    showPoolDetail(currentPoolId);
+  } else {
+    toast(res?.message || '加入失败', true);
+  }
+}
+
+// ============== ORDERS ==============
+async function loadOrders() {
+  $('tab-orders').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  const res = await api('GET', '/api/v1/orders', null, true);
+  if (!res || res.code !== 0 || !res.data || res.data.length === 0) {
+    $('tab-orders').innerHTML = '<div class="empty"><div class="empty-icon">&#128230;</div><p>暂无订单</p></div>';
+    return;
+  }
+  $('tab-orders').innerHTML = res.data.map(o => `
+    <div class="order-item" onclick="showOrderDetail('${o.orderId}')">
+      <div class="order-header">
+        <span class="pool-merchant-name">${o.merchantName}</span>
+        <span class="pool-status ${o.status}">${o.status}</span>
+      </div>
+      <div class="order-id">${o.orderId}</div>
+      <div class="pool-meta" style="margin-top:6px">
+        <span>应付: ¥${formatPrice(o.myPayAmount)}</span>
+        <span>${formatTime(o.createdAt)}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function showOrderDetail(orderId) {
+  const res = await api('GET', '/api/v1/orders/' + orderId, null, true);
+  if (!res || res.code !== 0) return toast('订单不存在', true);
+  const o = res.data;
+
+  let html = `
+    <div class="card">
+      <h2>订单 ${o.orderId}</h2>
+      <div class="info-grid" style="margin:12px 0">
+        <div class="info-item"><div class="label">商家</div><div class="value">${o.merchantName}</div></div>
+        <div class="info-item"><div class="label">状态</div><div class="value">${o.status}</div></div>
+        <div class="info-item"><div class="label">总额</div><div class="value">¥${formatPrice(o.totalAmount)}</div></div>
+        <div class="info-item"><div class="label">人数</div><div class="value">${o.memberCount || '-'}</div></div>
+      </div>
+    </div>
+    <div class="detail-section">
+      <h3>费用分摊</h3>
+      ${(o.participants || []).map(p => `
+        <div class="participant">
+          <div class="participant-header">
+            <span class="participant-name">${p.nickname || p.userId}</span>
+          </div>
+          <div class="info-grid" style="font-size:13px;margin-top:6px">
+            <div class="info-item"><div class="label">菜品</div><div>¥${formatPrice(p.foodAmount)}</div></div>
+            <div class="info-item"><div class="label">配送</div><div>¥${formatPrice(p.deliveryShare)}</div></div>
+            <div class="info-item"><div class="label">包装</div><div>¥${formatPrice(p.packagingShare)}</div></div>
+            <div class="info-item"><div class="label">应付</div><div style="color:var(--primary);font-weight:600">¥${formatPrice(p.totalPay)}</div></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  if (o.status === 'PENDING_CONFIRM') {
+    html += `<button class="btn btn-red" onclick="cancelOrder('${o.orderId}')">取消订单</button>`;
+  }
+
+  $('tab-orders').innerHTML = html;
+}
+
+async function cancelOrder(orderId) {
+  if (!confirm('确定取消订单？')) return;
+  const res = await api('POST', '/api/v1/orders/' + orderId + '/cancel', {}, true);
+  if (res && res.code === 0) {
+    toast('订单已取消');
+    loadOrders();
+  } else {
+    toast(res?.message || '取消失败', true);
+  }
+}
+
+// ============== PAYMENTS ==============
+async function loadPayments() {
+  $('tab-payments').innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  if (!currentUser) return;
+  const res = await api('GET', '/api/v1/payments/user/' + currentUser.userId + '/records', null, true);
+  if (!res || res.code !== 0 || !res.data || res.data.length === 0) {
+    $('tab-payments').innerHTML = '<div class="empty"><div class="empty-icon">&#128179;</div><p>暂无支付记录</p></div>';
+    return;
+  }
+  $('tab-payments').innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden">
+      ${res.data.map(r => `
+        <div class="pay-record">
+          <div>
+            <div style="font-weight:600;font-size:14px">¥${formatPrice(r.amount)}</div>
+            <div style="font-size:12px;color:var(--text2)">${r.poolId || '-'} · ${formatTime(r.createdAt)}</div>
+          </div>
+          <div style="text-align:right">
+            <span class="pay-type ${r.type}">${r.type === 'CHARGE' ? '扣款' : '退款'}</span>
+            <div class="pay-status ${r.status}" style="margin-top:4px">${r.status === 'SUCCESS' ? '成功' : r.status}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// ============== INIT ==============
+(function init() {
+  const saved = localStorage.getItem('fp_user');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      enterMain();
+    } catch(e) { showPage('login'); }
+  } else {
+    showPage('login');
+  }
+})();
+</script>
+</body>
+</html>

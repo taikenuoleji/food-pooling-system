@@ -1,0 +1,7 @@
+org.apache.rocketmq.spring.autoconfigure.RocketMQAutoConfiguration
+org.apache.rocketmq.spring.autoconfigure.RocketMQListenerConfiguration
+org.apache.rocketmq.spring.autoconfigure.ExtConsumerResetConfiguration
+org.apache.rocketmq.spring.autoconfigure.ExtProducerResetConfiguration
+org.apache.rocketmq.spring.autoconfigure.MessageConverterConfiguration
+org.apache.rocketmq.spring.autoconfigure.ListenerContainerConfiguration
+org.apache.rocketmq.spring.autoconfigure.RocketMQTransactionConfiguration

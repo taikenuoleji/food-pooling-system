@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: food-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  # Nacos (单机模式)
+  nacos:
+    image: nacos/nacos-server:v2.3.0
+    container_name: food-nacos
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    environment:
+      - MODE=standalone
+      - SPRING_DATASOURCE_PLATFORM=
+      - PREFER_HOST_MODE=hostname
+    restart: unless-stopped
+
+  # RocketMQ NameServer
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.1.3
+    container_name: food-rocketmq-namesrv
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+    restart: unless-stopped
+
+  # RocketMQ Broker
+  rocketmq-broker:
+    image: apache/rocketmq:5.1.3
+    container_name: food-rocketmq-broker
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+    depends_on:
+      - rocketmq-namesrv
+    environment:
+      - NAMESRV_ADDR=rocketmq-namesrv:9876
+    command: sh mqbroker -n rocketmq-namesrv:9876 autoCreateTopicEnable=true brokerIP1=host.docker.internal
+    restart: unless-stopped
