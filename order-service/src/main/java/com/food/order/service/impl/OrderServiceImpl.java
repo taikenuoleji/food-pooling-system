@@ -39,12 +39,30 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public String createOrder(CreateOrderRequest request) {
+        // 检查是否已存在该拼单的订单
+        OrderEntity existingOrder = orderMapper.selectOne(
+                new LambdaQueryWrapper<OrderEntity>().eq(OrderEntity::getPoolId, request.getPoolId()));
+        if (existingOrder != null) {
+            log.info("拼单 {} 的订单已存在: {}", request.getPoolId(), existingOrder.getOrderId());
+            return existingOrder.getOrderId();
+        }
+
         String orderId = IdGenerator.generate(BusinessConstants.ID_PREFIX_ORDER);
 
-        // 汇总菜品
+        // 汇总菜品金额（从items或settlements中计算）
         long totalFoodAmount = 0;
-        for (CreateOrderRequest.OrderItemDTO item : request.getItems()) {
-            totalFoodAmount += item.getTotalPrice();
+        long totalCouponDiscount = 0;
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            for (CreateOrderRequest.OrderItemDTO item : request.getItems()) {
+                totalFoodAmount += item.getTotalPrice();
+            }
+        }
+        if (request.getSettlements() != null) {
+            // 从settlements中汇总
+            for (CreateOrderRequest.SettlementDTO s : request.getSettlements()) {
+                totalFoodAmount += s.getFoodAmount() != null ? s.getFoodAmount() : 0L;
+                totalCouponDiscount += s.getCouponShare() != null ? s.getCouponShare() : 0L;
+            }
         }
 
         long totalAmount = totalFoodAmount + request.getDeliveryFee() + request.getPackagingFee();
@@ -58,7 +76,7 @@ public class OrderServiceImpl implements OrderService {
         order.setTotalFoodAmount(totalFoodAmount);
         order.setDeliveryFee(request.getDeliveryFee());
         order.setPackagingFee(request.getPackagingFee());
-        order.setCouponDiscount(0L);
+        order.setCouponDiscount(totalCouponDiscount);
         order.setTotalAmount(totalAmount);
         order.setMemberCount(request.getMemberCount());
         order.setCreatedAt(LocalDateTime.now());
@@ -81,12 +99,13 @@ public class OrderServiceImpl implements OrderService {
         // 插入分摊明细
         for (CreateOrderRequest.SettlementDTO s : request.getSettlements()) {
             OrderParticipantSettlementEntity settlement = new OrderParticipantSettlementEntity();
+            settlement.setSettlementId(IdGenerator.generate("STL"));
             settlement.setOrderId(orderId);
             settlement.setUserId(s.getUserId());
             settlement.setFoodAmount(s.getFoodAmount());
             settlement.setDeliveryShare(s.getDeliveryShare());
             settlement.setPackagingShare(s.getPackagingShare());
-            settlement.setCouponShare(0L);
+            settlement.setCouponShare(s.getCouponShare() != null ? s.getCouponShare() : 0L);
             settlement.setTotalAmount(s.getTotalAmount());
             settlement.setPayStatus("PENDING");
             settlement.setCreatedAt(LocalDateTime.now());
@@ -127,6 +146,7 @@ public class OrderServiceImpl implements OrderService {
                         .foodAmount(s.getFoodAmount())
                         .deliveryShare(s.getDeliveryShare())
                         .packagingShare(s.getPackagingShare())
+                        .couponShare(s.getCouponShare())
                         .totalPay(s.getTotalAmount())
                         .build()
         ).collect(Collectors.toList());
@@ -136,8 +156,12 @@ public class OrderServiceImpl implements OrderService {
                 .poolId(order.getPoolId())
                 .merchantName(order.getMerchantName())
                 .status(order.getStatus())
-                .totalAmount(order.getTotalAmount())
+                .totalFoodAmount(order.getTotalFoodAmount())
                 .deliveryFee(order.getDeliveryFee())
+                .packagingFee(order.getPackagingFee())
+                .couponDiscount(order.getCouponDiscount())
+                .totalAmount(order.getTotalAmount())
+                .memberCount(order.getMemberCount())
                 .items(itemVOs)
                 .participants(settlementVOs)
                 .estimatedArrival(order.getEstimatedArrival())

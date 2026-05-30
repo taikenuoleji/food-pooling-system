@@ -13,8 +13,12 @@ public class OrderDetailVO {
     private String poolId;
     private String merchantName;
     private String status;
-    private Long totalAmount;
+    private Long totalFoodAmount;
     private Long deliveryFee;
+    private Long packagingFee;
+    private Long couponDiscount;
+    private Long totalAmount;
+    private Integer memberCount;
     private List<ItemVO> items;
     private List<ParticipantSettlementVO> participants;
     private LocalDateTime estimatedArrival;
@@ -36,6 +40,7 @@ public class OrderDetailVO {
         private Long foodAmount;
         private Long deliveryShare;
         private Long packagingShare;
+        private Long couponShare;
         private Long totalPay;
     }
 }

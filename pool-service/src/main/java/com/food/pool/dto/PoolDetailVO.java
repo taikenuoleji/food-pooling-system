@@ -10,6 +10,7 @@ import java.util.List;
 @Builder
 public class PoolDetailVO {
     private String poolId;
+    private String merchantId;
     private String merchantName;
     private String status;
     private FormationRule formationRule;

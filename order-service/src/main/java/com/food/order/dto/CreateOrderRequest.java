@@ -34,6 +34,7 @@ public class CreateOrderRequest {
         private Long foodAmount;
         private Long deliveryShare;
         private Long packagingShare;
+        private Long couponShare;
         private Long totalAmount;
     }
 }

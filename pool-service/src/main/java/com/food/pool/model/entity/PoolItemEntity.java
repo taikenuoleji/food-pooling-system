@@ -13,6 +13,7 @@ public class PoolItemEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+    private String poolItemId;
     private String poolId;
     private String participantId;
     private String userId;

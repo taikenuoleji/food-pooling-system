@@ -50,4 +50,14 @@ public class PaymentController {
                                                         @RequestParam(defaultValue = "10") int size) {
         return Result.success(paymentService.getUserRecords(userId, page, size));
     }
+
+    /**
+     * 按订单支付（用户确认支付）
+     */
+    @PostMapping("/order/{orderId}/pay")
+    public Result<String> payOrder(@PathVariable String orderId,
+                                   @RequestHeader("X-User-Id") String userId) {
+        paymentService.payOrder(orderId, userId);
+        return Result.success("支付成功");
+    }
 }

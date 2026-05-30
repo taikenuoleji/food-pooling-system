@@ -13,4 +13,6 @@ public interface PaymentService {
     SettlementVO getSettlement(String poolId);
 
     List<PaymentRecordVO> getUserRecords(String userId, int page, int size);
+
+    void payOrder(String orderId, String userId);
 }

@@ -67,6 +67,7 @@ public class PoolEventConsumer implements RocketMQListener<PoolFormedEvent> {
             s.setFoodAmount(p.getFoodAmount());
             s.setDeliveryShare(p.getDeliveryShare());
             s.setPackagingShare(p.getPackagingShare());
+            s.setCouponShare(p.getCouponShare());
             s.setTotalAmount(p.getTotalAmount());
             request.getSettlements().add(s);
         }

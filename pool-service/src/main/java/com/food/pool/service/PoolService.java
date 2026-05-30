@@ -21,5 +21,7 @@ public interface PoolService {
 
     List<PoolListItemVO> listAvailablePools(String userId, int page, int size);
 
+    List<PoolListItemVO> listPlazaPools(int page, int size);
+
     PoolDetailVO addItems(String poolId, String userId, List<JoinPoolRequest.ItemRequest> items);
 }

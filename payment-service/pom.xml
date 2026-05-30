@@ -16,6 +16,11 @@
     <description>支付服务</description>
 
     <dependencies>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
         <!-- Common -->
         <dependency>
             <groupId>com.food</groupId>

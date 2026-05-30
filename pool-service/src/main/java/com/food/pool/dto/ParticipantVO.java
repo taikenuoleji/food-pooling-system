@@ -11,6 +11,7 @@ import java.util.List;
 public class ParticipantVO {
     private String userId;
     private String nickname;
+    private String role;
     private List<ItemVO> items;
     private Long subtotal;
     private LocalDateTime joinedAt;

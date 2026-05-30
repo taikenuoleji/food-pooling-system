@@ -8,10 +8,15 @@ import com.food.common.event.PoolDissolvedEvent;
 import com.food.common.event.PoolFormedEvent;
 import com.food.common.exception.BusinessException;
 import com.food.common.utils.IdGenerator;
+import com.food.common.dto.UserInfoDTO;
+import com.food.common.result.Result;
 import com.food.pool.dto.*;
+import com.food.pool.feign.UserFeignClient;
+import com.food.pool.mapper.MerchantMapper;
 import com.food.pool.mapper.PoolItemMapper;
 import com.food.pool.mapper.PoolMapper;
 import com.food.pool.mapper.PoolParticipantMapper;
+import com.food.pool.model.entity.MerchantEntity;
 import com.food.pool.model.entity.PoolEntity;
 import com.food.pool.model.entity.PoolItemEntity;
 import com.food.pool.model.entity.PoolParticipantEntity;
@@ -25,6 +30,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -37,9 +43,11 @@ public class PoolServiceImpl implements PoolService {
     private final PoolMapper poolMapper;
     private final PoolParticipantMapper participantMapper;
     private final PoolItemMapper itemMapper;
+    private final MerchantMapper merchantMapper;
     private final PoolFormationService formationService;
     private final RedissonClient redissonClient;
     private final PoolEventProducer eventProducer;
+    private final UserFeignClient userFeignClient;
 
     @Override
     @Transactional
@@ -49,7 +57,20 @@ public class PoolServiceImpl implements PoolService {
         pool.setInviteCode(generateInviteCode());
         pool.setCreatorId(creatorId);
         pool.setMerchantId(request.getMerchantId());
-        pool.setMerchantName(request.getMerchantName());
+
+        // 从数据库获取商家名称（如果请求中没有提供）
+        String merchantName = request.getMerchantName();
+        if (merchantName == null || merchantName.isEmpty()) {
+            LambdaQueryWrapper<MerchantEntity> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(MerchantEntity::getMerchantId, request.getMerchantId());
+            MerchantEntity merchant = merchantMapper.selectOne(wrapper);
+            if (merchant != null) {
+                merchantName = merchant.getName();
+            } else {
+                merchantName = "未知商家";
+            }
+        }
+        pool.setMerchantName(merchantName);
         pool.setStatus(BusinessConstants.POOL_STATUS_CREATED);
 
         FormationRule rule = request.getFormationRule();
@@ -137,6 +158,7 @@ public class PoolServiceImpl implements PoolService {
             if (request.getItems() != null) {
                 for (JoinPoolRequest.ItemRequest item : request.getItems()) {
                     PoolItemEntity poolItem = new PoolItemEntity();
+                    poolItem.setPoolItemId(IdGenerator.generate("PI"));
                     poolItem.setPoolId(poolId);
                     poolItem.setParticipantId(participant.getParticipantId());
                     poolItem.setUserId(userId);
@@ -292,6 +314,21 @@ public class PoolServiceImpl implements PoolService {
                         .eq(PoolParticipantEntity::getStatus, BusinessConstants.PARTICIPANT_ACTIVE)
                         .orderByAsc(PoolParticipantEntity::getJoinedAt));
 
+        // 批量获取用户昵称
+        Map<String, String> nicknameMap = new HashMap<>();
+        for (PoolParticipantEntity p : participants) {
+            if (!nicknameMap.containsKey(p.getUserId())) {
+                try {
+                    Result<UserInfoDTO> r = userFeignClient.getUserInfo(p.getUserId());
+                    if (r != null && r.getCode() == 0 && r.getData() != null) {
+                        nicknameMap.put(p.getUserId(), r.getData().getNickname());
+                    }
+                } catch (Exception e) {
+                    log.warn("获取用户信息失败: {}", p.getUserId());
+                }
+            }
+        }
+
         List<ParticipantVO> participantVOs = participants.stream().map(p -> {
             // 查询该参与者的菜品
             List<PoolItemEntity> items = itemMapper.selectList(
@@ -307,9 +344,13 @@ public class PoolServiceImpl implements PoolService {
                             .build()
             ).collect(Collectors.toList());
 
+            String nickname = nicknameMap.getOrDefault(p.getUserId(),
+                    "用户" + p.getUserId().substring(Math.max(0, p.getUserId().length() - 4)));
+
             return ParticipantVO.builder()
                     .userId(p.getUserId())
-                    .nickname("") // 需要通过Feign获取，简化处理
+                    .nickname(nickname)
+                    .role(p.getRole())
                     .items(itemVOs)
                     .subtotal(p.getFoodAmount())
                     .joinedAt(p.getJoinedAt())
@@ -323,6 +364,7 @@ public class PoolServiceImpl implements PoolService {
 
         return PoolDetailVO.builder()
                 .poolId(pool.getPoolId())
+                .merchantId(pool.getMerchantId())
                 .merchantName(pool.getMerchantName())
                 .status(pool.getStatus())
                 .formationRule(rule)
@@ -347,7 +389,7 @@ public class PoolServiceImpl implements PoolService {
                         .eq(PoolParticipantEntity::getStatus, BusinessConstants.PARTICIPANT_ACTIVE));
 
         List<String> userIds = participants.stream().map(PoolParticipantEntity::getUserId).collect(Collectors.toList());
-        List<Long> foodAmounts = participants.stream().map(PoolParticipantEntity::getFoodAmount).collect(Collectors.toList());
+        List<Long> foodAmounts = participants.stream().map(p -> p.getFoodAmount() != null ? p.getFoodAmount() : 0L).collect(Collectors.toList());
 
         // 计算费用分摊
         List<SettlementDTO> settlements = calculateSettlement(userIds, foodAmounts,
@@ -369,6 +411,7 @@ public class PoolServiceImpl implements PoolService {
             p.setFoodAmount(s.getFoodAmount());
             p.setDeliveryShare(s.getDeliveryShare());
             p.setPackagingShare(s.getPackagingShare());
+            p.setCouponShare(s.getCouponShare());
             p.setTotalAmount(s.getTotalAmount());
             eventParticipants.add(p);
         }
@@ -391,7 +434,7 @@ public class PoolServiceImpl implements PoolService {
     }
 
     /**
-     * 按人头均摊公共费用
+     * 按人头均摊公共费用，成团后菜品打八折
      */
     private List<SettlementDTO> calculateSettlement(List<String> userIds, List<Long> foodAmounts,
                                                      long deliveryFee, long packagingFee) {
@@ -407,13 +450,17 @@ public class PoolServiceImpl implements PoolService {
         for (int i = 0; i < count; i++) {
             long dShare = deliveryEach + (i == count - 1 ? deliveryRemainder : 0);
             long pShare = packagingEach + (i == count - 1 ? packagingRemainder : 0);
+            // 八折优惠：foodAmount 已经是折扣后的金额，couponShare 为优惠的金额
+            long originalFood = foodAmounts.get(i);
+            long discountedFood = originalFood * 8 / 10;
+            long couponShare = originalFood - discountedFood;
             result.add(SettlementDTO.builder()
                     .userId(userIds.get(i))
-                    .foodAmount(foodAmounts.get(i))
+                    .foodAmount(discountedFood)
                     .deliveryShare(dShare)
                     .packagingShare(pShare)
-                    .couponShare(0L)
-                    .totalAmount(foodAmounts.get(i) + dShare + pShare)
+                    .couponShare(couponShare)
+                    .totalAmount(discountedFood + dShare + pShare)
                     .build());
         }
         return result;
@@ -451,6 +498,51 @@ public class PoolServiceImpl implements PoolService {
     }
 
     @Override
+    public List<PoolListItemVO> listPlazaPools(int page, int size) {
+        LambdaQueryWrapper<PoolEntity> wrapper = new LambdaQueryWrapper<PoolEntity>()
+                .in(PoolEntity::getStatus, BusinessConstants.POOL_STATUS_FORMING, BusinessConstants.POOL_STATUS_CREATED)
+                .gt(PoolEntity::getExpiresAt, LocalDateTime.now())
+                .orderByDesc(PoolEntity::getCreatedAt)
+                .last("LIMIT " + (page - 1) * size + "," + size);
+        List<PoolEntity> pools = poolMapper.selectList(wrapper);
+
+        // 批量获取发起者昵称
+        Map<String, String> nicknameMap = new HashMap<>();
+        for (PoolEntity p : pools) {
+            if (!nicknameMap.containsKey(p.getCreatorId())) {
+                try {
+                    Result<UserInfoDTO> r = userFeignClient.getUserInfo(p.getCreatorId());
+                    if (r != null && r.getCode() == 0 && r.getData() != null) {
+                        nicknameMap.put(p.getCreatorId(), r.getData().getNickname());
+                    }
+                } catch (Exception e) {
+                    log.warn("获取用户信息失败: {}", p.getCreatorId());
+                }
+            }
+        }
+
+        return pools.stream().map(p -> {
+            String creatorName = nicknameMap.getOrDefault(p.getCreatorId(), "用户" + p.getCreatorId().substring(Math.max(0, p.getCreatorId().length() - 4)));
+            long remaining = java.time.Duration.between(LocalDateTime.now(), p.getExpiresAt()).toMinutes();
+            return PoolListItemVO.builder()
+                    .poolId(p.getPoolId())
+                    .merchantName(p.getMerchantName())
+                    .merchantId(p.getMerchantId())
+                    .status(p.getStatus())
+                    .creatorId(p.getCreatorId())
+                    .creatorName(creatorName)
+                    .currentMembers(p.getCurrentMembers())
+                    .minMembers(p.getMinMembers())
+                    .currentFoodAmount(p.getCurrentFoodAmount())
+                    .expiresAt(p.getExpiresAt())
+                    .createdAt(p.getCreatedAt())
+                    .deliveryFee(p.getDeliveryFee())
+                    .joinedAt(p.getCreatedAt())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Override
     @Transactional
     public PoolDetailVO addItems(String poolId, String userId, List<JoinPoolRequest.ItemRequest> items) {
         PoolEntity pool = poolMapper.selectOne(
@@ -477,6 +569,7 @@ public class PoolServiceImpl implements PoolService {
         if (items != null) {
             for (JoinPoolRequest.ItemRequest item : items) {
                 PoolItemEntity poolItem = new PoolItemEntity();
+                poolItem.setPoolItemId(IdGenerator.generate("PI"));
                 poolItem.setPoolId(poolId);
                 poolItem.setParticipantId(participant.getParticipantId());
                 poolItem.setUserId(userId);

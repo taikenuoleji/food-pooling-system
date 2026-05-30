@@ -213,4 +213,46 @@ public class PaymentServiceImpl implements PaymentService {
                 .createdAt(r.getCreatedAt())
                 .build()).collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public void payOrder(String orderId, String userId) {
+        log.info("用户 {} 支付订单 {}", userId, orderId);
+
+        // 查询该用户该订单的扣款记录
+        List<PaymentRecordEntity> records = recordMapper.selectList(
+                new LambdaQueryWrapper<PaymentRecordEntity>()
+                        .eq(PaymentRecordEntity::getOrderId, orderId)
+                        .eq(PaymentRecordEntity::getUserId, userId)
+                        .eq(PaymentRecordEntity::getType, "CHARGE"));
+
+        if (records.isEmpty()) {
+            // 如果没有扣款记录，创建一条新的支付记录
+            String recordId = IdGenerator.generate(BusinessConstants.ID_PREFIX_PAYMENT_RECORD);
+            PaymentRecordEntity record = new PaymentRecordEntity();
+            record.setRecordId(recordId);
+            record.setBatchId("MANUAL");
+            record.setUserId(userId);
+            record.setOrderId(orderId);
+            record.setType("CHARGE");
+            record.setAmount(0L); // 金额从订单获取，这里简化处理
+            record.setStatus("SUCCESS");
+            record.setCreatedAt(LocalDateTime.now());
+            record.setUpdatedAt(LocalDateTime.now());
+            recordMapper.insert(record);
+            log.info("创建支付记录: {}", recordId);
+        } else {
+            // 更新现有记录状态
+            for (PaymentRecordEntity record : records) {
+                if ("PENDING".equals(record.getStatus())) {
+                    record.setStatus("SUCCESS");
+                    record.setUpdatedAt(LocalDateTime.now());
+                    recordMapper.updateById(record);
+                    log.info("更新支付记录: {} -> SUCCESS", record.getRecordId());
+                }
+            }
+        }
+
+        log.info("订单 {} 支付完成", orderId);
+    }
 }

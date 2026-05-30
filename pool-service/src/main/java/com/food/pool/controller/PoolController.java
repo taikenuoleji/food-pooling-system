@@ -58,6 +58,12 @@ public class PoolController {
         return Result.success(poolService.listAvailablePools(userId, page, size));
     }
 
+    @GetMapping("/plaza")
+    public Result<List<PoolListItemVO>> listPlazaPools(@RequestParam(defaultValue = "1") int page,
+                                                       @RequestParam(defaultValue = "20") int size) {
+        return Result.success(poolService.listPlazaPools(page, size));
+    }
+
     @PostMapping("/{poolId}/items")
     public Result<PoolDetailVO> addItems(@PathVariable String poolId,
                                          @RequestHeader("X-User-Id") String userId,

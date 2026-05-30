@@ -13,6 +13,7 @@ public class OrderParticipantSettlementEntity {
 
     @TableId(type = IdType.AUTO)
     private Long id;
+    private String settlementId;
     private String orderId;
     private String userId;
     private Long foodAmount;

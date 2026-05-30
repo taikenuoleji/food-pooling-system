@@ -32,6 +32,7 @@ public class PoolFormedEvent implements Serializable {
         private Long foodAmount;
         private Long deliveryShare;
         private Long packagingShare;
+        private Long couponShare;
         private Long totalAmount;
     }
 }
